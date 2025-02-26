@@ -1,9 +1,10 @@
 import { asyncHandler } from "../utils/asyncHandler.js"
 
 const userRegister = asyncHandler(async(req, res) => {
-    res.status(200).json({
-      message : "Api実行中です。"
-    })
+   const {fullName, email, password} = req.body
+   if ([fullName, email, password].some(fields => fields?.trim())) {
+    
+   }
 })
 
 
