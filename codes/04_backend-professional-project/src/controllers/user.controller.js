@@ -4,6 +4,7 @@ import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+
 const userRegister = asyncHandler(async (req, res) => {
   // 1. get user details from frontend || postman
   const { fullName, email, password, username } = req.body;
@@ -89,4 +90,38 @@ const userRegister = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, createdUser, "User Registered Successfully"));
 });
 
-export { userRegister };
+
+const userLogin = asyncHandler(async(req, res) => {
+  
+  // req.body = data
+  // username or email
+  // find user
+  // password check
+  // access and refresh token
+  // send Cookie
+  
+  const {email, username, password} = req.body
+  
+  if(!email || !username) {
+      throw new ApiError(400, "username or email is required")
+  }
+
+  const user = await User.findOne({
+    $or: [{ username }, { email }],
+  });
+
+  if(!user) {
+    throw new ApiError(401, "user is not found.")
+  }
+
+  // password checking
+  const isPasswordValid = await user.isPasswordCorrect(password)
+
+  if(!isPasswordValid){
+    throw new ApiError(403, "password is not correct")
+  }
+
+})
+
+
+export { userRegister, userLogin };
