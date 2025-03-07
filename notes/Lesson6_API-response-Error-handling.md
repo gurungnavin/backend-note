@@ -26,7 +26,7 @@ We will create an `asyncHandler` that handles asynchronous code in Express using
 - With `Promise`
 ```javascript
   const asyncHandler = (reqestHandler) => {
-    (req, res, next) => {
+    return (req, res, next) => {
       Promise.resolve(reqestHandler(req, res, next)).catch((err) => next(err))
     }
   }
