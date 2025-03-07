@@ -7,7 +7,7 @@ export const verifyJwt = asyncHandler(async(req, _, next)=> {
   // NOTE: if res is not used, we can write underScore '_'
   try {
     //access token from cookie of req., because loggedIn user has token
-    const token = req.cookie?.accessToken || req.header("Authorization"?.replace("Bearer ", ""))
+    const token = req.cookie?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
 
 
     //check that token if not throw error
