@@ -319,65 +319,144 @@ const updateUserDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Account Details updated successFully"));
 });
 
-const updateUserAvatar = asyncHandler(async(req, res)=> {
-  const avatarLocalPath = req.file?.path
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
 
-  if(!avatarLocalPath){
-    throw new ApiError(400, "Avatar file is misssing")
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is misssing");
   }
 
-  const avatar = await uploadOnCloudinary(avatarLocalPath)
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
 
-  if(!avatar) {
-    throw new ApiError(406, "Error while uploading avatar")
+  if (!avatar) {
+    throw new ApiError(406, "Error while uploading avatar");
   }
 
-  const user = await User.findByIdAndUpdate(req.user?._id,
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
     {
-      $set : {
-        avatar : avatar.url
-      }
+      $set: {
+        avatar: avatar.url,
+      },
     },
-    {new: true}
-  ).select("-password")
+    { new: true }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Avatar image updated Successfully"));
+});
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
+
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, "Cover Image file is misssing");
+  }
+
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+  if (!coverImage) {
+    throw new ApiError(406, "Error while uploading Cover Image");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage.url,
+      },
+    },
+    { new: true }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Cover image updated Successfully"));
+});
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  // req.params is used to get parameters from the URL.
+  const { username } = req.params;
+
+  // check username is empty or not
+  if (!username) {
+    throw new ApiError(400, "Username is missing");
+  }
+
+  const channel = await User.aggregate([
+    {
+      // Match the username(database) in the database with the provided username(user input),
+      //converted to lowercase for case-insensitive comparison.
+      $match: {
+        username: username.toLowerCase(),
+      },
+    },
+    {
+      // Match the channel's _id (from current collection) with the "channel" field (from subscriptions collection)
+      // and add the matching subscribers (users) to the "subscribers" array.
+      $lookup: {
+        from: "subscriptions", // Subscriptions collection (outside: subscription.model.js)
+        localField: "_id", // Current collection's channel _id (your side)
+        foreignField: "channel", // Subscriptions' channel field (outside)
+        as: "subscribers", // Store matching users (subscribers) in the "subscribers" array (your side)
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions", // Subscriptions collection model (outside: subscription.model.js)
+        localField: "_id", // Current collection's channel _id (your side)
+        foreignField: "subscriber", // Match where the user (channel owner) is a subscriber (outside)
+        as: "subscribedTo", // Store the channels that the current user has subscribed to
+      },
+    },
+    {
+      $addFields: {
+        // Count the number of subscribers the channel has
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+
+        // Count the number of channels this user has subscribed to
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo",
+        },
+
+        // Check if the logged-in user is subscribed to this channel
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] }, // If user ID exists in subscribers list
+            then: true, // User is subscribed
+            else: false, // User is not subscribed
+          },
+        },
+      },
+    },
+    {
+      // Select specific fields to include in the final output
+      $project: {
+        fullName: 1,
+        username: 1,
+        email: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+      },
+    },
+  ]);
+
+  if (!channel?.length) {
+    throw new ApiError(404, "Channel does not exists");
+  }
 
   return res
   .status(200)
   .json(
-    new ApiResponse(200, user, "Avatar image updated Successfully")
+    new ApiResponse(200, channel[0], "User Channel is Fetched SuccessFully")
   )
-})
-
-
-const updateUserCoverImage = asyncHandler(async(req, res)=> {
-  const coverImageLocalPath = req.file?.path
-
-  if(!coverImageLocalPath){
-    throw new ApiError(400, "Cover Image file is misssing")
-  }
-
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-
-  if(!coverImage) {
-    throw new ApiError(406, "Error while uploading Cover Image")
-  }
-
-  const user = await User.findByIdAndUpdate(req.user?._id,
-    {
-      $set : {
-        coverImage : coverImage.url
-      }
-    },
-    {new: true}
-  ).select("-password")
-
-  return res
-  .status(200)
-  .json(
-    new ApiResponse(200, user, "Cover image updated Successfully")
-  )
-})
-
+});
 
 export {
   userRegister,
@@ -388,5 +467,6 @@ export {
   getCurrentUser,
   updateUserDetails,
   updateUserAvatar,
-  updateUserCoverImage
+  updateUserCoverImage,
+  getUserChannelProfile,
 };
